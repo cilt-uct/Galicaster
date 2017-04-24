@@ -23,7 +23,7 @@ from galicaster.utils.gstreamer import WeakMethod
 
 logger = context.get_logger()
 
-GST_TIMEOUT= Gst.SECOND*10
+GST_TIMEOUT= Gst.SECOND*30
 
 class Recorder(object):
 
