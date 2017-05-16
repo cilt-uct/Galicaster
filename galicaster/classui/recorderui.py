@@ -96,6 +96,7 @@ class RecorderClassUI(Gtk.Box):
         self.focus_is_active = False
         self.net_activity = None
         self.error_dialog = None
+        self.close_before_response_action = False
 
         # BUILD
         self.recorderui = builder.get_object("recorderbox")
@@ -272,7 +273,8 @@ class RecorderClassUI(Gtk.Box):
             #warning = message.PopUp(message.WARN_STOP, text,
             #  context.get_mainwindow(), buttons)
             message.PopUp(message.WARN_STOP, text,
-                          context.get_mainwindow(), buttons, self.on_stop_dialog_response)
+                          context.get_mainwindow(), buttons, self.on_stop_dialog_response, close_before_response_action = self.close_before_response_action)
+
             #if warning.response not in message.POSITIVE or self.recorder.status not in [RECORDING_STATUS]:
             #    return False
 
@@ -730,7 +732,9 @@ class RecorderClassUI(Gtk.Box):
             helpb.set_sensitive(True)
             prevb.set_sensitive(False)
             swapb.set_sensitive(False)
-            editb.set_sensitive(self.recorder.current_mediapackage and self.recorder.current_mediapackage.manual)
+            editb.set_sensitive((self.recorder.current_mediapackage
+                                and self.recorder.current_mediapackage.manual)
+                                or False)
 
         elif status == PAUSED_STATUS:
             record.set_sensitive(False)
