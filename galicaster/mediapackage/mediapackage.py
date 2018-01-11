@@ -1454,10 +1454,16 @@ class Mediapackage(object):
                         creat = _checknget(dom, "dcterms:" + name)
                         if creat:
                             if creat[-1] == "Z":
-                                try:
-                                    self.setDate(datetime.strptime(creat, "%Y-%m-%dT%H:%M:%SZ"))
-                                except:
-                                    self.setDate(datetime.strptime(creat, "%Y-%m-%d %H:%M:%SZ"))
+                                if creat.find(".") != -1:
+                                    try:
+                                        self.setDate(datetime.strptime(creat, "%Y-%m-%dT%H:%M:%S.%fZ"))
+                                    except:
+                                        self.setDate(datetime.strptime(creat, "%Y-%m-%d %H:%M:%S.%fZ"))
+                                else:
+                                    try:
+                                        self.setDate(datetime.strptime(creat, "%Y-%m-%dT%H:%M:%SZ"))
+                                    except:
+                                        self.setDate(datetime.strptime(creat, "%Y-%m-%d %H:%M:%SZ"))
                             else:
                                 try:
                                     self.setDate(datetime.strptime(creat, "%Y-%m-%dT%H:%M:%S"))
