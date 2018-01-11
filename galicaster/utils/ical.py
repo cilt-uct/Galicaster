@@ -20,23 +20,13 @@ from icalendar import Calendar
 from galicaster.mediapackage import mediapackage
 from galicaster.utils.systemcalls import execute
 
-count = 0
-
 def get_events_from_string_ical(ical_data, limit=0, logger=None):
-    global count
     # See https://github.com/collective/icalendar#api-change
     try:
         f = getattr(Calendar, 'from_ical', getattr(Calendar, 'from_string', None))
         cal = f(ical_data)
-        if limit > 0:
-            events = cal.walk('vevent')[count:limit+count]
-            for event in events:
-                if event['DTEND'].dt.replace(tzinfo=None) < datetime.utcnow():
-                    count += 1
-            if count > 0:
-                events = cal.walk('vevent')[count:limit+count]
-        else:
-            events = cal.walk('vevent')
+        # Ignore the limit parameter: see https://github.com/teltek/Galicaster/issues/451
+        events = cal.walk('vevent')
 
         return events
     except Exception:
