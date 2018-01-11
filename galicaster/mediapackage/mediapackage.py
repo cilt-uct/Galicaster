@@ -1484,18 +1484,6 @@ class Mediapackage(object):
                 for name in SERIES_TERMS:
                     self.metadata_series[name] = _checknget(dom, "dcterms:" + name)
 
-        # Parse temporal metadatum
-        if self.metadata_episode.has_key('temporal') and self.metadata_episode['temporal'] and not self.hasTracks():
-            try:
-                g = re.search('start=(.*); end=(.*); ', self.metadata_episode['temporal'])
-                start = parser.parse(g.group(1)).astimezone(tz.tzutc()).replace(tzinfo=None)
-                stop = parser.parse(g.group(2)).astimezone(tz.tzutc()).replace(tzinfo=None)
-                diff = stop - start
-                self.setDuration(diff.seconds*1000)
-                self.setDate(start)
-            except:
-                pass
-
     #FIXME merge with add
     def addAttachmentAsString(self, content, name=None, identifier=None):
         """Adds the information of an attachment in a file.
