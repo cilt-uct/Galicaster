@@ -210,31 +210,7 @@ class OCHTTPClient(object):
 
         client_conf = {
             'service.pid': 'galicaster',
-            'capture.confidence.debug': 'false',
-            'capture.confidence.enable': 'false',
-            'capture.config.remote.polling.interval': self.polling_config,
             'capture.agent.name': self.hostname,
-            'capture.agent.state.remote.polling.interval': self.polling_state,
-            'capture.agent.capabilities.remote.polling.interval': self.polling_caps,
-            'capture.agent.state.remote.endpoint.url': self.server + '/capture-admin/agents',
-            'capture.recording.shutdown.timeout': '60',
-            'capture.recording.state.remote.endpoint.url': self.server + '/capture-admin/recordings',
-            'capture.schedule.event.drop': 'false',
-            'capture.schedule.remote.polling.interval': int(self.polling_schedule)/60,
-            'capture.schedule.event.buffertime': '1',
-            'capture.schedule.remote.endpoint.url': self.server + '/recordings/calendars',
-            'capture.schedule.cache.url': '/opt/opencast/storage/cache/schedule.ics',
-            'capture.ingest.retry.interval': '300',
-            'capture.ingest.retry.limit': '5',
-            'capture.ingest.pause.time': '3600',
-            'capture.cleaner.interval': '3600',
-            'capture.cleaner.maxarchivaldays': '30',
-            'capture.cleaner.mindiskspace': '0',
-            'capture.error.messagebody': '&quot;Capture agent was not running, and was just started.&quot;',
-            'capture.error.subject': '&quot;%hostname capture agent started at %date&quot;',
-            'org.opencastproject.server.url': 'http://172.20.209.88:8080',
-            'org.opencastproject.capture.core.url': self.server,
-            'capture.max.length': '28800',
             'capture.device.timezone': get_timezone()
             }
 
