@@ -99,9 +99,9 @@ def is_event_changed(new_event, old_event):
         append = True
     elif 'RELATED-TO' in new_event and 'RELATED-TO' in old_event and old_event['RELATED-TO'] != new_event['RELATED-TO']:
         append = True
-    elif 'ORGANIZER' in new_event and not 'ORGANIZER' in old_event or not 'ORGANIZER' in new_event and 'ORGANIZER' in old_event:
+    elif 'LAST-MODIFIED' in new_event and not 'LAST-MODIFIED' in old_event or not 'LAST-MODIFIED' in new_event and 'LAST-MODIFIED' in old_event:
         append = True
-    elif 'ORGANIZER' in new_event and 'ORGANIZER' in old_event and old_event['ORGANIZER'] != new_event['ORGANIZER']:
+    elif 'LAST-MODIFIED' in new_event and 'LAST-MODIFIED' in old_event and old_event['LAST-MODIFIED'] != new_event['LAST-MODIFIED']:
         append = True
     else:
         append = False
