@@ -101,7 +101,7 @@ def is_event_changed(new_event, old_event):
         append = True
     elif 'LAST-MODIFIED' in new_event and not 'LAST-MODIFIED' in old_event or not 'LAST-MODIFIED' in new_event and 'LAST-MODIFIED' in old_event:
         append = True
-    elif 'LAST-MODIFIED' in new_event and 'LAST-MODIFIED' in old_event and old_event['LAST-MODIFIED'] != new_event['LAST-MODIFIED']:
+    elif 'LAST-MODIFIED' in new_event and 'LAST-MODIFIED' in old_event and old_event['LAST-MODIFIED'].dt.replace(tzinfo=None) != new_event['LAST-MODIFIED'].dt.replace(tzinfo=None):
         append = True
     else:
         append = False
