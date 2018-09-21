@@ -67,6 +67,7 @@ class RecorderService(object):
         self.__create_drawing_areas_func = None
         self.__handle_recover_id = None
         self.autorecover = autorecover
+        self.obs_presenter = None
 
         self.logger.info("Autorecover mode: {}".format(self.autorecover))
 
