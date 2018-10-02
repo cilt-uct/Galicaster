@@ -307,8 +307,6 @@ class Worker(object):
         if not self.oc_client:
             raise Exception('Opencast client is not enabled')
 
-        #self.logger.info("TEST MP '{}': duration:{} {} {} {} {}".format(mp.getTitle(), mp.getDuration(), self.min_length, mp.manual, (mp.getDuration() < self.min_length), (self.min_length == 0)))
-
         workflow = None if not "workflow" in params else params["workflow"]
         workflow_parameters = None if not "workflow_parameters" in params else params["workflow_parameters"]
 
