@@ -25,9 +25,10 @@ timeout = None
 t = None
 
 def init():
-    global dispatcher, logger, timeout
+    global dispatcher, logger, timeout, recorder
     logger = context.get_logger()
     dispatcher = context.get_dispatcher()
+    recorder = context.get_recorder()
     conf = context.get_conf()
     threshold = conf.get('lowaudio','lowaudio_threshold')
     timeout = conf.get_float('lowaudio','timeout')
@@ -49,7 +50,8 @@ def low_audio(element=None):
 
 def emit_error():
     global timer
-    dispatcher.emit("recorder-error", "Low volume")
+    if recorder.is_recording() == False:
+        dispatcher.emit("recorder-error", "Low volume")
     timer = False
 
 def low_audio_recovered(element=None):
