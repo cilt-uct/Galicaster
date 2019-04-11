@@ -186,18 +186,18 @@ class RecorderClassUI(Gtk.Box):
         if data2 == "Inf":
             data2 = -200
 
-        average = (data + data2)/2.0
+        audio_level = max(data, data2)
         if not self.mute:
-            if self.lowaudio_threshold and average < (self.lowaudio_threshold):
+            if self.lowaudio_threshold and audio_level < (self.lowaudio_threshold):
                 self.dispatcher.emit("low-audio")
                 self.low_audio = True
-            if average < (self.thresholdVum):
+            if audio_level < (self.thresholdVum):
                 self.dispatcher.emit("audio-mute")
                 self.mute = True
-        if self.mute and average > (self.thresholdVum + 5.0):
+        if self.mute and audio_level > (self.thresholdVum + 5.0):
             self.dispatcher.emit("audio-recovered")
             self.mute = False
-        if self.low_audio and self.lowaudio_threshold and average > (self.lowaudio_threshold + 5.0):
+        if self.low_audio and self.lowaudio_threshold and audio_level > (self.lowaudio_threshold + 5.0):
             self.dispatcher.emit("low-audio-recovered")
             self.low_audio = False
 
