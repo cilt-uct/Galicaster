@@ -11,7 +11,7 @@
 # or send a letter to Creative Commons, 171 Second Street, Suite 300,
 # San Francisco, California, 94105, USA.
 
-__version__ = 'dev-master'
+__version__ = '3.1-UCT-2026-03-07'
 
 import gi
 gi.require_version('Gst', '1.0')
