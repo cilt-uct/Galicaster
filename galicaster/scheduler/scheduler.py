@@ -20,6 +20,8 @@ from galicaster.mediapackage import mediapackage
 This class manages the timers and its respective signals in order to start and stop scheduled recordings.
 """
 
+DEFAULT_SCHEDULER_ACTIVE = True
+
 class Scheduler(object):
 
     def __init__(self, repo, conf, disp, logger, recorder):
@@ -52,12 +54,15 @@ class Scheduler(object):
         self.start_timers = dict()
         self.mp_rec = None
 
-        self.dispatcher.connect("timer-long", self._check_next_recording)
+        self.active     = conf.get('scheduler', 'active') or DEFAULT_SCHEDULER_ACTIVE
+        self.logger.debug('scheduler is active: %r' % self.active)
 
+        if self.active:
+            self.dispatcher.connect("timer-long", self._check_next_recording)
 
     def _check_next_recording(self, origin):
         next_mp = self.repo.get_next_mediapackage()
-        if next_mp and not self.start_timers.has_key(next_mp.getIdentifier()):
+        if next_mp and next_mp.getIdentifier() not in self.start_timers:
             self.create_timer(next_mp)
 
 
@@ -67,7 +72,7 @@ class Scheduler(object):
             mp (Mediapackage): the mediapackage whose timer is going to be created.
         """
         diff = (mp.getDate() - datetime.datetime.utcnow())
-        if diff < datetime.timedelta(minutes=30) and mp.getIdentifier() != self.mp_rec and not self.start_timers.has_key(mp.getIdentifier()):
+        if diff < datetime.timedelta(minutes=30) and mp.getIdentifier() != self.mp_rec and mp.getIdentifier() not in self.start_timers:
             self.logger.info('Create timer for MP {}, it starts at {}'.format(mp.getIdentifier(), mp.getStartDateAsString()))
             self.dispatcher.emit('recorder-scheduled-event', mp.getIdentifier())
 
@@ -76,13 +81,13 @@ class Scheduler(object):
 
 
     def remove_timer(self, mp):
-        if mp and self.start_timers.has_key(mp.getIdentifier()):
+        if mp and mp.getIdentifier() in self.start_timers:
             GObject.source_remove(self.start_timers[mp.getIdentifier()])
             del self.start_timers[mp.getIdentifier()]
 
 
     def update_timer(self, mp):
-        if self.start_timers.has_key(mp.getIdentifier()) and mp.status == mediapackage.SCHEDULED:
+        if mp.getIdentifier() in self.start_timers and mp.status == mediapackage.SCHEDULED:
             GObject.source_remove(self.start_timers[mp.getIdentifier()])
             del self.start_timers[mp.getIdentifier()]
             self.create_timer(mp)
@@ -100,7 +105,7 @@ class Scheduler(object):
             self.mp_rec = key
             mp = self.repo.get(key)
 
-            self.logger.info('Timeout to start record %s, duration %s ms', mp.getIdentifier(), mp.getDuration())
+            self.logger.info('Start time for recording %s, duration %s ms', mp.getIdentifier(), mp.getDuration())
 
             GObject.timeout_add_seconds(mp.getDuration()/1000, self.__stop_record, mp.getIdentifier())
             self.recorder.record(mp)
@@ -115,7 +120,7 @@ class Scheduler(object):
             key (str): the mediapackage identifier.
         """
         self.mp_rec = None
-        self.logger.info('Timeout to stop record %s', key)
+        self.logger.info('End time for recording %s', key)
 
         mp = self.repo.get(key)
         if mp.status == mediapackage.RECORDING:

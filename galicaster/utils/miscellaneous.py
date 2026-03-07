@@ -11,13 +11,16 @@
 # or send a letter to Creative Commons, 171 Second Street, Suite 300,
 # San Francisco, California, 94105, USA.
 
-from gi.repository import Gdk
-from galicaster import __version__
-from galicaster.core import context
 import datetime
 
 import os
 import os.path
+import traceback
+import pyautogui
+
+from gi.repository import Gdk
+from galicaster import __version__
+from galicaster.core import context
 
 conf = context.get_conf()
 
@@ -28,6 +31,9 @@ def get_screenshot_as_pixbuffer():
     pb = Gdk.pixbuf_get_from_window(window, x, y, width, height)
     return pb
 
+def get_screenshot_as_pillow():
+    screenshot = pyautogui.screenshot()
+    return screenshot
 
 def get_footer():
     return "Galicaster "+ __version__ + "  -  " + conf.get_hostname()
@@ -48,3 +54,11 @@ def get_timezone():
         tzname = open('/etc/timezone').read().rstrip()
 
     return tzname
+
+def count_files(folder):
+    try:
+        path, dirs, files = next(os.walk(folder))
+        return len(files)
+    except Exception as exc:
+        print((traceback.format_exc()))
+        print(exc)

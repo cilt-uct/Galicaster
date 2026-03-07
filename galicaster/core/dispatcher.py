@@ -39,9 +39,7 @@ class Dispatcher(GObject.GObject):
         GObject.GObject.__init__(self)
 
     def add_new_signal(self, name, *args):
-        parameters = ()
-        for element in args:
-            parameters = parameters + (GObject.TYPE_PYOBJECT,)
+        parameters = (GObject.TYPE_PYOBJECT,) * len(args)
 
         if not self.is_signal(name):
             GObject.signal_new(name, self, GObject.SignalFlags.RUN_LAST, None, parameters)
@@ -74,13 +72,18 @@ GObject.signal_new('action-reload-profile', Dispatcher, GObject.SignalFlags.RUN_
 GObject.signal_new('recorder-ready', Dispatcher, GObject.SignalFlags.RUN_LAST, None, () )
 GObject.signal_new('recorder-starting', Dispatcher, GObject.SignalFlags.RUN_LAST, None, () )
 GObject.signal_new('recorder-started', Dispatcher, GObject.SignalFlags.RUN_LAST, None, (GObject.TYPE_PYOBJECT,) )
+GObject.signal_new('recorder-stopping', Dispatcher, GObject.SignalFlags.RUN_LAST, None, () )
 GObject.signal_new('recorder-stopped', Dispatcher, GObject.SignalFlags.RUN_LAST, None, (GObject.TYPE_PYOBJECT,) )
+GObject.signal_new('record-finished', Dispatcher, GObject.SignalFlags.RUN_LAST, None, (GObject.TYPE_PYOBJECT,) )
 
 #AUDIO
 GObject.signal_new('audio-mute', Dispatcher, GObject.SignalFlags.RUN_LAST, None, () )
 GObject.signal_new('audio-recovered', Dispatcher, GObject.SignalFlags.RUN_LAST, None, () )
 GObject.signal_new('action-audio-enable-msg', Dispatcher, GObject.SignalFlags.RUN_LAST, None, () )
 GObject.signal_new('action-audio-disable-msg', Dispatcher, GObject.SignalFlags.RUN_LAST, None, () )
+GObject.signal_new('low-audio', Dispatcher, GObject.SignalFlags.RUN_LAST, None, () )
+GObject.signal_new('low-audio-recovered', Dispatcher, GObject.SignalFlags.RUN_LAST, None, () )
+
 #PLAYER
 GObject.signal_new('player-vumeter', Dispatcher, GObject.SignalFlags.RUN_LAST, None, (GObject.TYPE_PYOBJECT,GObject.TYPE_PYOBJECT,GObject.TYPE_PYOBJECT,) )
 GObject.signal_new('player-status', Dispatcher, GObject.SignalFlags.RUN_LAST, None, (GObject.TYPE_PYOBJECT,) )

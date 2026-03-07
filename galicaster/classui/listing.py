@@ -25,6 +25,9 @@ from galicaster.utils import readable
 
 from galicaster.utils.i18n import _
 
+import cgi
+import html
+
 logger = context.get_logger()
 
 rcstring = """
@@ -74,7 +77,7 @@ class ListingClassUI(ManagerUI):
         self.dispatcher.connect_ui("operation-stopped", self.refresh_operation)
         self.dispatcher.connect_ui("view-changed", self.event_change_mode)
 
-        self.populate_treeview(self.repository.list().values())
+        self.populate_treeview(list(self.repository.list().values()))
         self.box.pack_start(self.strip,False,False,0)
         self.box.reorder_child(self.strip,0)
         self.box.show()
@@ -93,13 +96,13 @@ class ListingClassUI(ManagerUI):
             duration = round(mp.getDuration(), -3)
             if duration in ["", None]:
                 duration = 0
-
+            # TODO: Use of html.escape(mp.getTitle()) is a WORKAROUND for https://github.com/teltek/Galicaster/issues/458
             if mp.status != mediapackage.SCHEDULED:
                 lista.append([mp.getIdentifier(),
-                    mp.getTitle(),
+                    html.escape(mp.getTitle() or ""),
                     mp.getCreator(),
                     mp.series_title ,
-                    long(mp.getSize()),
+                    int(mp.getSize()),
                     int(duration),
                     mp.getStartDateAsString(),
                     mp.status,
@@ -139,7 +142,7 @@ class ListingClassUI(ManagerUI):
         # Create each column
         #columna5 = Gtk.TreeViewColumn("Id",render5,text = 0, background= 8)
         # column5 wont be append to the treeview
-        columna1 = Gtk.TreeViewColumn(_("Name"),render1,text = 1, background= 8)
+        columna1 = Gtk.TreeViewColumn(_("Name"),render1, markup = 1, background= 8)
         columna6 = Gtk.TreeViewColumn(_("Presenter"), render6, text = 2, background= 8)
         columna7 = Gtk.TreeViewColumn(_("Series"), render7, text = 3, background= 8)
         columna2 = Gtk.TreeViewColumn(_("Size"), render2, text = 4, background= 8)
@@ -224,7 +227,7 @@ class ListingClassUI(ManagerUI):
         """Refresh all the values on the list"""
         logger.info("Refreshing TreeView")
         model, selected = self.vista.get_selection().get_selected_rows()
-        self.insert_data_in_list(self.lista, self.repository.list().values())
+        self.insert_data_in_list(self.lista, list(self.repository.list().values()))
         s = 0 if len(selected) == 0 else selected[0][0]
         self.vista.get_selection().select_path(s)
 
@@ -256,10 +259,11 @@ class ListingClassUI(ManagerUI):
     def _refresh(self,mp,i):
         """Fills the new values of a refreshed row"""
         self.lista.set(i,0,mp.getIdentifier())
-        self.lista.set(i,1,mp.getTitle())
+        # TODO: Use of html.escape(mp.getTitle()) is a WORKAROUND for https://github.com/teltek/Galicaster/issues/458
+        self.lista.set(i,1,html.escape(mp.getTitle() or ""))
         self.lista.set(i,2,mp.getCreator())
         self.lista.set(i,3,mp.series_title)
-        self.lista.set(i,4,long(mp.getSize()))
+        self.lista.set(i,4,int(mp.getSize()))
         self.lista.set(i,5,int(mp.getDuration()))
         self.lista.set(i,6,mp.getStartDateAsString())
         self.lista.set(i,7,mp.status)
@@ -472,11 +476,7 @@ class ListingClassUI(ManagerUI):
             else:
                 label = column.get_widget()
                 attr = Pango.AttrList()
-    #            attr.insert(Pango.AttrFontDesc(font,0,-1))
                 label.set_attributes(attr)
-                if not first:
-                    label.show()
-                    column.set_widget(label)
                 column.queue_resize()
 
         self.do_resize(buttonlist)

@@ -13,7 +13,7 @@
 
 import os
 import tempfile
-import Queue
+import queue
 import json
 
 from datetime import datetime
@@ -53,7 +53,7 @@ This operations are threads concurrently done with the rest of galicaster tasks 
 class Worker(object):
 
     def __init__(self, dispatcher, repo, logger, oc_client=None, export_path=None, tmp_path=None,
-                 use_namespace=True, sbs_layout='sbs', hide_ops=[], hide_nightly=[]):
+                 use_namespace=True, sbs_layout='sbs', hide_ops=[], hide_nightly=[], min_length=0):
         """Initializes a worker that manages the mediapackages of the repository in order to do long operations concurrently by throwing Threads when necessay.
         Args:
             dispacher (Dispatcher): the galicaster event-dispatcher to emit signals.
@@ -61,7 +61,7 @@ class Worker(object):
             logger (Logger): the object that prints all the information, warning and error messages.
             oc_client (OCHTTPClient): the opencast HTTP client.
             export_path (str): the absolute path where galicaster exports zip and sidebyside.
-            tmp_path (str): temporal path (needed if /tmp partition is small).
+            tmp_path (str): temporary path (needed if /tmp partition is small).
             use_namespace (bool): if true the manifest attribute xmlns has 'http://mediapackage.opencastproject.org' value.
             sbs_layout (str): the identifier of side by side layout. See notes.
             hide_ops (List[str]): List of hidden mediapackage operations.
@@ -87,6 +87,7 @@ class Worker(object):
         self.logger = logger
         self.hide_ops = hide_ops
         self.hide_nightly = hide_nightly
+        self.min_length = min_length * 1000
 
         for dir_path in (self.export_path, self.tmp_path):
             if not os.path.isdir(dir_path):
@@ -96,7 +97,7 @@ class Worker(object):
         self.add_operation(INGEST, INGEST_CODE, self._ingest)
         self.add_operation(ZIPPING, ZIPPING_CODE, self._export_to_zip)
 
-        self.jobs = Queue.Queue()
+        self.jobs = queue.Queue()
 
         self.t = T(self.jobs)
         self.t.setDaemon(True)
@@ -112,7 +113,7 @@ class Worker(object):
         nn = ' Nightly'
 
         operation_list = []
-        for k in JOBS.keys():
+        for k in list(JOBS.keys()):
             operation_list.extend([k, k+nn])
 
         return operation_list
@@ -140,7 +141,7 @@ class Worker(object):
         jobs = []
         jobs_night = []
 
-        for key,value in JOBS.iteritems():
+        for key,value in list(JOBS.items()):
             if key==INGEST and not self.oc_client:
                 continue
             if mp.getOpStatus(value) not in [mediapackage.OP_PENDING, mediapackage.OP_PROCESSING]:
@@ -166,7 +167,7 @@ class Worker(object):
         jobs = []
         jobs_night = []
 
-        for key,value in JOBS.iteritems():
+        for key,value in list(JOBS.items()):
             if key==INGEST and not self.oc_client:
                 continue
 
@@ -200,7 +201,7 @@ class Worker(object):
             Bool: True if success. False otherwise.
         """
         try:
-            if isinstance(mp, basestring):
+            if isinstance(mp, str):
                 mp = self.repo[mp]
             f = F_OPERATION[name]
         except Exception as exc:
@@ -219,7 +220,7 @@ class Worker(object):
             Bool: True if success. False otherwise.
         """
         try:
-            if isinstance(mp, basestring):
+            if isinstance(mp, str):
                 mp = self.repo[mp]
             f = F_OPERATION_QUEUED[name]
         except Exception as exc:
@@ -267,13 +268,13 @@ class Worker(object):
         try:
             if name.count('cancel'):
                 # getattr(self, name.replace('cancel',''))
-                if not name.replace('cancel','') in JOB_NAMES.keys():
+                if not name.replace('cancel','') in list(JOB_NAMES.keys()):
                     raise Exception('Unknown operation named {}'.format(name))
 
                 self.cancel_nightly(name.replace('cancel',''), mp)
             else:
                 # getattr(self, name)
-                if not name in JOB_NAMES.keys():
+                if not name in list(JOB_NAMES.keys()):
                     raise Exception('Unknown operation named {}'.format(name))
 
                 self.enqueue_nightly_job_by_name(name, mp, params)
@@ -318,7 +319,10 @@ class Worker(object):
         self._export_to_zip(mp, params={"location" : ifile, "is_action": False})
 
         if mp.manual:
-            self.oc_client.ingest(ifile.name, mp.getIdentifier(), workflow=workflow, workflow_instance=None, workflow_parameters=workflow_parameters)
+            if mp.getDuration() > self.min_length or self.min_length == 0:
+                self.oc_client.ingest(ifile.name, mp.getIdentifier(), workflow=workflow, workflow_instance=None, workflow_parameters=workflow_parameters)
+            else:
+                self.logger.info("NOT Ingesting MP {}: duration:{} less than {}".format(mp.getIdentifier(), mp.getDuration(), self.min_length))
         else:
             if not workflow:
                 properties = mp.getOCCaptureAgentProperties()
@@ -330,11 +334,14 @@ class Worker(object):
                     workflow = None
 
                 workflow_parameters = {}
-                for k, v in properties.iteritems():
+                for k, v in list(properties.items()):
                     if k[0:36] == 'org.opencastproject.workflow.config.':
                         workflow_parameters[k[36:]] = v
 
-            self.oc_client.ingest(ifile.name, mp.getIdentifier(), workflow, mp.getIdentifier(), workflow_parameters)
+            if mp.getDuration() > self.min_length or self.min_length == 0:
+                self.oc_client.ingest(ifile.name, mp.getIdentifier(), workflow, mp.getIdentifier(), workflow_parameters)
+            else:
+                self.logger.info("NOT Ingesting MP {}: duration:{} less than {}".format(mp.getIdentifier(), mp.getDuration(), self.min_length))
 
         ifile.close()
 
@@ -353,7 +360,7 @@ class Worker(object):
         is_action = True if not "is_action" in params else params["is_action"]
 
         if not is_action:
-            self.logger.info("Zipping MP {} to {}".format(mp.getIdentifier(), location if type(location) in [str,unicode] else location.name))
+            self.logger.info("Zipping MP {} to {}".format(mp.getIdentifier(), location if type(location) in [str,str] else location.name))
 
         serializer.save_in_zip(mp, location, self.use_namespace, self.logger)
 
@@ -435,7 +442,7 @@ class Worker(object):
             audio = mp.getTracksAudio()[0].getURI()
 
         if not camera or not screen:
-            raise IOError, 'Error in SideBySide process: Two videos needed (with presenter and presentation flavors)'
+            raise IOError('Error in SideBySide process: Two videos needed (with presenter and presentation flavors)')
 
         if audio_mode == "auto":
             self.logger.info('SideBySide for MP {0}: auto audio-mode'.format(mp.getIdentifier()))
@@ -498,8 +505,8 @@ class Worker(object):
             sender (Dispatcher): instance of the class in charge of emitting signals.
         """
         self.logger.info('Executing nightly process')
-        for mp in self.repo.values():
-            for (op_name, op_status) in mp.operation.iteritems():
+        for mp in list(self.repo.values()):
+            for (op_name, op_status) in list(mp.operations.items()):
                 if op_status == mediapackage.OP_NIGHTLY:
                     params = {}
                     if mp.getProperty("enqueue_params"):

@@ -15,6 +15,8 @@
 from os import path
 from datetime import datetime
 from xml.dom import minidom
+import json
+
 from galicaster.mediapackage import mediapackage
 from galicaster.mediapackage.utils import _checknget, _checkget
 from galicaster.mediapackage.utils import _getElementAbsPath
@@ -46,48 +48,62 @@ def fromXML(xml, logger=None):
 
     without_galicaster = False
 
-    try:
-        galicaster = minidom.parse(path.join(mp.getURI(), 'galicaster.xml'))
-        mp.status = int(_checknget(galicaster, "status"))
-        for i in galicaster.getElementsByTagName("operation"):
-            op = unicode(i.getAttribute("key"))
-            status = _checknget(i, "status")
-            mp.setOpStatus(op, int(status))
-        for i in galicaster.getElementsByTagName("property"):
-            op = unicode(i.getAttribute("name"))
-            value = _checkget(i)
-            mp.properties[op] = unicode(value)
+    galicaster_json = False
 
+    try:
+        with open(path.join(mp.getURI(), 'galicaster.json')) as file:
+            galicaster_json = json.load(file)
     except IOError:
         if logger:
-            logger.error("The Mediapackage: "+mp.identifier+" : has no galicaster.xml file")
-        without_galicaster = True
+            logger.warning("The Mediapackage: "+mp.identifier+" : has no galicaster.json file. Trying to load outdated galicaster.xml")
+        # Keep The XML read logic for backwards compatibility:
+        try:
+            galicaster = minidom.parse(path.join(mp.getURI(), 'galicaster.xml'))
 
+            mp.status = int(_checknget(galicaster, "status"))
+            for i in galicaster.getElementsByTagName("operation"):
+                op = str(i.getAttribute("key"))
+                status = _checknget(i, "status")
+                mp.setOpStatus(op, int(status))
+            for i in galicaster.getElementsByTagName("property"):
+                op = str(i.getAttribute("name"))
+                value = _checkget(i)
+                mp.properties[op] = str(value)
+        except IOError:
+            if logger:
+                logger.error("The Mediapackage: "+mp.identifier+" : has no galicaster.xml or galicaster.json file")
+            without_galicaster = True
 
-    for etype, tag in mediapackage.MANIFEST_TAGS.items():
+    if galicaster_json and 'galicaster' in galicaster_json:
+        galicaster_json = galicaster_json['galicaster']
+        mp.status = galicaster_json['status']
+        mp.operations = galicaster_json['operations']
+        mp.properties = galicaster_json['properties']
+
+    for etype, tag in list(mediapackage.MANIFEST_TAGS.items()):
         for i in manifest.getElementsByTagName(tag):
             if i.hasAttribute("id"):
-                identifier = unicode(i.getAttribute("id"))
+                identifier = str(i.getAttribute("id"))
             else:
                 identifier = None
             uri = _checknget(i, "url")
-            flavor = unicode(i.getAttribute("type"))
+            flavor = str(i.getAttribute("type"))
             mime = _checknget(i, "mimetype")
             duration = _checknget(i, "duration")
             element_path = _getElementAbsPath(uri, mp.getURI())
-            ref = unicode(i.getAttribute("ref"))
+            ref = str(i.getAttribute("ref"))
 
             tags = []
             for tag_elem in i.getElementsByTagName("tags"):
-                tag_text = unicode(_checknget(tag_elem, "tag"))
+                tag_text = str(_checknget(tag_elem, "tag"))
                 tags.append(tag_text)
 
             if i.hasAttribute("ref"):
-                ref = unicode(i.getAttribute("ref"))
+                ref = str(i.getAttribute("ref"))
             else:
                 ref = None
             if not path.exists(element_path):
-                raise IOError, "Not exists the element {} in the MP {}".format(element_path, mp.identifier)
+                raise IOError("Not exists the element {} in the MP {}".format(element_path, mp.identifier))
             mp.add(element_path, etype, flavor, mime, duration, ref, identifier, tags)
 
             if uri == 'org.opencastproject.capture.agent.properties' and etype == mediapackage.TYPE_ATTACHMENT:
@@ -97,4 +113,10 @@ def fromXML(xml, logger=None):
                 mp.status = mediapackage.RECORDED
 
     mp.marshalDublincore()
+
+    # To rewrite the galicaster.xml file with a galicaster.json file
+    if not without_galicaster and not galicaster_json:
+        from galicaster.mediapackage import serializer
+        serializer.save_in_dir(mp)
+
     return mp

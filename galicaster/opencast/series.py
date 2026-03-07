@@ -20,7 +20,7 @@ import getpass
 
 NAMESP = 'http://purl.org/dc/terms/'
 DISALLOWED_QUERIES = [ 'q', 'edit', 'sort', 'startPage', 'count', 'default' ]
-RESULTS_PER_PAGE = 100
+RESULTS_PER_PAGE = 500
 MAPPINGS = { 'user': getpass.getuser() }
 
 
@@ -32,12 +32,16 @@ def get_series():
     series_conf = context.get_conf().get_section('series')
 
     # Init 'queries' dictionary
-    queries = {'startPage': 0, 'count': RESULTS_PER_PAGE}
+    queries = {'offset': 0, 'limit': RESULTS_PER_PAGE}
+
+    if not ocservice.net:
+        series_list = load_series_from_file()
+        return series_list
 
     # Filter out keys that do not refer to a certain series property
     # Also, substitute any placeholder(s) used to filter the series
     # TODO Currently the only placeholder is {user}
-    for key in series_conf.keys():
+    for key in list(series_conf.keys()):
         if key not in DISALLOWED_QUERIES:
             try:
                 queries[key] = series_conf[key].format(**MAPPINGS)
@@ -49,51 +53,59 @@ def get_series():
     try:
         series_list = []
         check_default = True
-        while True:
-            if not ocservice.net:
+
+        series_total = int(ocservice.client.countSeries())
+
+        for i in range(0,series_total,RESULTS_PER_PAGE):
+            queries['offset']=i
+            series_json = json.loads(ocservice.client.getseries(**queries))
+
+            if (int(series_json['count'])==0):
                 break
 
-            series_json = json.loads(ocservice.client.getseries(**queries))
-            for catalog in series_json['catalogs']:
+            for serie in series_json['results']:
                 try:
-                    series_list.append(parse_json_series(catalog))
+                    series_list.append(parse_json_series(serie))
                 except KeyError:
                     # Ignore ill-formated series
                     pass
-            if len(series_list) >= int(series_json['totalCount']):
-                # Check the default series is present, otherwise query for it
-                if 'default' in series_conf and check_default and series_conf['default'] not in dict(series_list):
-                    check_default = False
-                    queries = { "seriesId": series_conf['default'] }
-                else:
-                    break
-            else:
-                queries['startPage'] += 1
+
+        # Check the default series is present, otherwise query for it
+        # if 'default' in series_conf and check_default and series_conf['default'] not in dict(series_list):
+        #     check_default = False
+        #         queries = { "seriesId": series_conf['default'] }
+        #     else:
+        #             break
+        #     else:
+        #         queries['startPage'] += 1
 
         repo.save_attach('series.json', json.dumps(series_list))
 
     except (ValueError, IOError, RuntimeError, AttributeError):
         #TODO Log the exception
-        try:
-            series_list = json.load(repo.get_attach('series.json'))
-        except (ValueError, IOError):
-            #TODO Log the exception
-            series_list = []
+        series_list = load_series_from_file()
 
     return series_list
 
+def load_series_from_file():
+    try:
+        series_list = json.load(repo.get_attach('series.json'))
+    except (ValueError, IOError):
+        #TODO Log the exception
+        series_list = []
 
 def parse_json_series(json_series):
     series = {}
-    for term in json_series[NAMESP].iterkeys():
-        try:
-            series[term] = json_series[NAMESP][term][0]['value']
-        except (KeyError, IndexError):
-            # Ignore non-existant items
-            # TODO Log the exception
-            pass
-
-    return (series['identifier'], series )
+    #{"identifier": "2886ab13-e292-4272-9361-7d055bf6c14c", "created": "2019-12-02T07:09:26Z", "title": "18/19 Better Lives"}]
+    try:
+        series['identifier'] = json_series['id']
+        series['created'] = json_series['creation_date']
+        series['title'] = json_series['title']
+    except (KeyError, IndexError):
+        # Ignore non-existant items
+        # TODO Log the exception
+        pass
+    return (series['identifier'], series)
 
 
 def transform(a):
@@ -109,7 +121,7 @@ def filterSeriesbyId(list_series, seriesid):
     Generate a list with the series value name, shortname and id
     """
     for element in list_series:
-        if seriesid and seriesid in element[1]["identifier"].encode('utf8'):
+        if seriesid and seriesid in element[1]["identifier"]:
             try:
                 match = {"id": seriesid, "name": element[1]["title"], "list": element[1]}
                 return match
@@ -136,7 +148,7 @@ def getSeriesbyName(seriesname):
     """
     list_series = dict(get_series())
     match = None
-    for key,series in list_series.iteritems():
+    for key,series in list(list_series.items()):
         if series['title'] == seriesname:
             match =  {"id": key, "name": seriesname, "list": list_series[key]}
             break

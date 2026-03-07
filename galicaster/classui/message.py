@@ -15,6 +15,7 @@ from gi.repository import Gtk, Gdk, GdkPixbuf
 from gi.repository import GObject
 from galicaster.classui import get_image_path, get_ui_path
 from galicaster.classui.elements.message_header import Header
+from galicaster.recorder.service import ERROR_STATUS
 
 from galicaster.utils.i18n import _
 from galicaster.core import context
@@ -72,7 +73,7 @@ class PopUp(Gtk.Widget):
 
     def __init__(self, message=None, text=TEXT, parent=None,
                  buttons=None, response_action=None, close_on_response=True,
-                 show=[], close_parent = False):
+                 show=[], close_parent = False, close_before_response_action = False):
         """ Initializes the Gtk.Dialog from its GLADE
         Args:
             message (str): type of message (See above constants)
@@ -94,6 +95,7 @@ class PopUp(Gtk.Widget):
         size = parent.get_size()
         self.response_action = response_action
         self.close_on_response = close_on_response
+        self.close_before_response_action =  close_before_response_action
         self.message = message
         self.close_parent = close_parent
         self.size = size
@@ -112,30 +114,42 @@ class PopUp(Gtk.Widget):
 
             frames = {'Cancel': {'Cancel' : -2}}
 
-            for operation, response in buttons.iteritems():
+            for operation, response in list(buttons.items()):
                 if operation.count('Ingest'):
-                    if not frames.has_key('Ingest'):
+                    if 'Ingest' not in frames:
                         frames['Ingest'] = {}
                     frames['Ingest'][operation] = response
                 elif operation.count('Side') or operation.count('Export'):
-                    if not frames.has_key('Export'):
+                    if 'Export' not in frames:
                         frames['Export'] = {}
                     frames['Export'][operation] = response
 
             self.set_buttons(self.gui, frames)
 
         elif message == MP_INFO:
-            if text.has_key('tracks'):
+            if 'tracks' in text:
                 grid = self.gui.get_object('tracks_grid')
                 if grid:
                     self.fill_info(grid, text['tracks'])
-            if text.has_key('catalogs'):
+            if 'catalogs' in text:
                 grid = self.gui.get_object('catalogs_grid')
                 if grid:
                     self.fill_info(grid, text['catalogs'])
 
         elif message == ABOUT:
             self.set_logos(self.gui)
+            # WORKAROUND (TTK-16472):
+            # In some graphical environments the GtkAboutDialog default buttons would not appear
+            # This blocks Galicaster, as the dialog can't be closed
+            # As a workaround, we add a "Close" button if the dialog buttonbox is empty
+            # A more permanent solution might be crafting the about window manually
+            about_buttonbox = self.gui.get_object("aboutdialog-action_area1")
+            if len(about_buttonbox.get_children()) == 0 :
+                about_buttonbox.get_parent().set_property('visible' ,True)
+                close_button = Gtk.Button().new_with_label(_("Close"))
+                close_button.set_property('visible' ,True)
+                close_button.connect("clicked", self.dialog_destroy)
+                about_buttonbox.pack_start(close_button, False, True, 0)
 
         elif message == NEXT_REC:
             if text['next_recs']:
@@ -191,7 +205,7 @@ class PopUp(Gtk.Widget):
         # For MP Info PopUP
         series_shown = False
 
-        for label, content in text.iteritems():
+        for label, content in list(text.items()):
 
             if label == 'title':
                 title = content
@@ -272,10 +286,10 @@ class PopUp(Gtk.Widget):
                 }
         }
 
-        for frame, operations in frames.iteritems():
+        for frame, operations in list(frames.items()):
             frame_widget = gui.get_object('{} frame'.format(frame))
             frame_widget.show()
-            for operation, response in operations.iteritems():
+            for operation, response in list(operations.items()):
                 button = gui.get_object("{} button".format(operation))
                 button.set_label(OPERATION_NAMES[operation])
                 button.connect("clicked", self.force_response, response)
@@ -288,7 +302,7 @@ class PopUp(Gtk.Widget):
                 button.show()
 
         # Expand the buttons if the widgets of the same column in different rows are hidden
-        for row, widget in export_frame_pos[0].iteritems():
+        for row, widget in list(export_frame_pos[0].items()):
             if not widget:
                 if export_frame_pos[1][row]:
                     grid.child_set_property(export_frame_pos[1][row], 'top-attach', 0)
@@ -332,7 +346,7 @@ class PopUp(Gtk.Widget):
             void_label.show()
             grid.attach(void_label, 1, row, 1, 1)
             row += 1
-            for info_label, info_content in e.iteritems():
+            for info_label, info_content in list(e.items()):
                 label = Gtk.Label.new(info_label.title())
                 label.set_halign(Gtk.Align.END)
                 label.show()
@@ -353,7 +367,7 @@ class PopUp(Gtk.Widget):
         row = 1
         for mp in info:
             column = 0
-            for label, content in mp.iteritems():
+            for label, content in list(mp.items()):
                 widget = gui.get_object('{}_mp'.format(label))
                 if widget:
                     if isinstance(widget, Gtk.Label):
@@ -364,6 +378,9 @@ class PopUp(Gtk.Widget):
                         new_widget.set_property('halign', widget.get_property('halign'))
                         new_widget.set_property('valign', widget.get_property('valign'))
                         new_widget.connect("clicked", self.send_start, content)
+                        recorder = context.get_recorder()
+                        if recorder.status == ERROR_STATUS:
+                            new_widget.set_sensitive(False)
                     widget_classes = widget.get_style_context().list_classes()
                     for style_class in widget_classes:
                         widget_style_context = new_widget.get_style_context()
@@ -426,9 +443,15 @@ class PopUp(Gtk.Widget):
 
     def on_dialog_response(self, origin, response_id):
         if response_id not in NEGATIVE and self.response_action:
-            self.response_action(response_id, builder=self.gui, popup=self)
             if self.close_on_response:
-                self.dialog_destroy()
+                if self.close_before_response_action:
+                    self.dialog_destroy()
+                    self.response_action(response_id, builder=self.gui, popup=self)
+                else:
+                    self.response_action(response_id, builder=self.gui, popup=self)
+                    self.dialog_destroy()
+            else:
+                self.response_action(response_id, builder=self.gui, popup=self)
         else:
             self.dialog_destroy()
             if self.close_parent:
@@ -442,13 +465,14 @@ class PopUp(Gtk.Widget):
             self.dialog.destroy()
             self.dialog = None
         instance = None
+
         self.dispatcher.emit("action-audio-enable-msg")
 
 GObject.type_register(PopUp)
 
 def main(args):
     """Launcher for debugging purposes"""
-    print "Running Main Message PopUp"
+    print("Running Main Message PopUp")
     PopUp()
     Gtk.main()
     return 0

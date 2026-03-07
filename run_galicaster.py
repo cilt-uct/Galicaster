@@ -12,6 +12,7 @@
 # or send a letter to Creative Commons, 171 Second Street, Suite 300,
 # San Francisco, California, 94105, USA.
 
+import argparse
 import sys
 # debug
 # import traceback
@@ -25,16 +26,15 @@ from gi.repository import Gtk     # noqa: ignore=E402
 from gi.repository import GLib    # noqa: ignore=E402
 from gi.repository import Gst     # noqa: ignore=E402
 
+from galicaster import __version__
 from galicaster.core import core  # noqa: ignore=E402
-
+from galicaster.core import context
+from galicaster.utils.dbusservice import AlreadyRunning
 
 def main(args):
-    def usage():
-        sys.stderr.write("usage: %s\n" % args[0])
-        return 1
-
-    if len(args) != 1:
-        return usage()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v', '--version', action='version', version='Galicaster {version}'.format(version=__version__))
+    parser.parse_args(args=args[1:])
     try:
         Gst.init(None)
         gc = core.Main()
@@ -53,6 +53,16 @@ def main(args):
     except KeyboardInterrupt:
         gc.emit_quit()
         print("Interrupted by user!")
+
+    except AlreadyRunning as exc:
+        #Added custom exception when galicaster it's already running
+        msg = "Error starting Galicaster: {0}".format(exc)
+        print(msg)
+
+        d = context.get_dispatcher()
+        d.emit("quit")
+        return -2
+
     except Exception as exc:
         # debug
         # print traceback.format_exc()
@@ -60,7 +70,6 @@ def main(args):
         msg = "Error starting Galicaster: {0}".format(exc)
         print(msg)
 
-        from galicaster.core import context
         logger = context.get_logger()
         logger and logger.error(msg)
 

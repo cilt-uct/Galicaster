@@ -13,6 +13,8 @@
 
 import os
 from datetime import datetime
+from gi.repository import Gdk, GLib
+
 from galicaster.mediapackage import mediapackage
 from galicaster.recorder import Recorder
 from galicaster.utils.i18n import _
@@ -60,6 +62,7 @@ class RecorderService(object):
         self.__set_status(INIT_STATUS)
 
         self.current_mediapackage = None
+        self.last_mediapackage = None
         self.error_msg = None
         self.recorder = None
         self.__recorderklass = recorderklass
@@ -85,7 +88,15 @@ class RecorderService(object):
         try:
             self.logger.info("Starting recording service in the preview status")
             self.__prepare()
+
+            if self.is_error():
+                return False
+
             self.recorder.preview()
+
+            if self.is_error():
+                return False
+
             self.__set_status(PREVIEW_STATUS)
             return True
 
@@ -112,10 +123,15 @@ class RecorderService(object):
         self.dispatcher.emit("recorder-ready")
 
         self.mute_preview(self.mute)
-        if self.__create_drawing_areas_func:
-            info = self.recorder.get_display_areas_info()
-            areas = self.__create_drawing_areas_func(info)
-            self.recorder.set_drawing_areas(areas)
+
+        def drawing_areas_wrapper():
+            if self.__create_drawing_areas_func:
+                info = self.recorder.get_display_areas_info()
+                areas = self.__create_drawing_areas_func(info)
+                self.recorder.set_drawing_areas(areas)
+
+        Gdk.threads_add_idle(GLib.PRIORITY_HIGH, drawing_areas_wrapper)
+
 
 
     def record(self, mp=None):
@@ -143,14 +159,9 @@ class RecorderService(object):
                 self.resume()
 
             if self.status == RECORDING_STATUS:
-                self.recorder.stop()
-                self.__close_mp()
-                try:
-                    self.__prepare()
-                    self.recorder.preview_and_record()
-                except Exception as exc:
-                    self.dispatcher.emit("recorder-error", str(exc))
-                    return False
+                self.stop()
+                self.record(mp)
+                return True
             else:
                 self.recorder and self.recorder.record()
 
@@ -180,16 +191,21 @@ class RecorderService(object):
             self.logger.warning("Cancel stop: status error (is {})".format(self.status))
             return False
 
+        self.dispatcher.emit("recorder-stopping")
         self.recorder.stop(force)
-        if not  self.is_error():
+        if self.is_error():
+            self.logger.error("Error stopping the recording. Recording service state: ERROR_STATUS")
+        else:
             self.__close_mp()
             self.__set_status(INIT_STATUS)
             self.preview()
+
+        self.dispatcher.emit("record-finished", self.last_mediapackage)
         return True
 
 
     def __close_mp(self):
-        close_duration = self.recorder.get_recorded_time() / 1000000
+        close_duration = self.recorder.get_recorded_time() // 1000000
         self.current_mediapackage.status = mediapackage.RECORDED
         self.logger.info("Adding new mediapackage ({}) to the repository".format(
                 self.current_mediapackage.getIdentifier()))
@@ -197,14 +213,18 @@ class RecorderService(object):
                                 close_duration, self.current_mediapackage.manual, True, self.conf.get_boolean('ingest', 'ignore_capture_devices'))
 
         self.dispatcher.emit("recorder-stopped", self.current_mediapackage.getIdentifier())
-
-        code = 'manual' if self.current_mediapackage.manual else 'scheduled'
-        if self.conf.get_lower('ingest', code) == 'immediately':
-            self.worker.enqueue_job_by_name('ingest', self.current_mediapackage)
-        elif self.conf.get_lower('ingest', code) == 'nightly':
-            self.worker.enqueue_nightly_job_by_name('ingest', self.current_mediapackage)
+        self.enqueue_ingest(self.current_mediapackage)
+        self.last_mediapackage = self.current_mediapackage
         self.current_mediapackage = None
 
+
+    def enqueue_ingest(self, mp):
+        if self.conf.get_boolean("ingest", "active"):
+            code = 'manual' if mp.manual else 'scheduled'
+            if self.conf.get_lower('ingest', code) == 'immediately':
+                self.worker.enqueue_job_by_name('ingest', mp)
+            elif self.conf.get_lower('ingest', code) == 'nightly':
+                self.worker.enqueue_nightly_job_by_name('ingest', mp)
 
     def pause(self):
         self.logger.info("Pausing recorder")
@@ -317,7 +337,8 @@ class RecorderService(object):
 
     def _handle_recover(self, origin):
         self.logger.info("Handle recover from error")
-        if self.__handle_recover_id and self.preview():
+        self.dispatcher.emit("action-reload-profile")
+        if self.__handle_recover_id:
             self.error_msg = None
             self.logger.info("Disconnecting recover recorder callback")
             self.__handle_recover_id = self.dispatcher.disconnect(self.__handle_recover_id)
@@ -344,7 +365,7 @@ class RecorderService(object):
 
     def __new_mediapackage(self):
         now = datetime.now().replace(microsecond=0)
-        title = _("Recording started at {0}").format(now.isoformat())
+        title = self.conf.get_hostname() + _(" at {0}").format(now.isoformat())
         mp = mediapackage.Mediapackage(title=title)
         return mp
 

@@ -17,7 +17,7 @@ Unit tests for `galicaster.utils.mediainfo` module.
 """
 import tempfile
 import subprocess
-import urllib, mimetypes
+import urllib.request, urllib.parse, urllib.error, mimetypes
 
 from unittest import TestCase
 from nose.plugins.attrib import attr
@@ -37,7 +37,7 @@ class TestFunctions(TestCase):
         del self.conf
 
     @attr('notravis')
-    def test_screenshot(self):
+    def test_screenshot_pixbuffer(self):
         pb = miscellaneous.get_screenshot_as_pixbuffer()
         ifile = tempfile.NamedTemporaryFile(suffix='.png')
         pb.savev(ifile.name, "png", [], ["100"])
@@ -46,7 +46,23 @@ class TestFunctions(TestCase):
 
         # TODO: use https://github.com/ahupp/python-magic ??
         # Check 1
-        url = urllib.pathname2url(imagefile.name)
+        url = urllib.request.pathname2url(imagefile.name)
+        self.assertEqual(mimetypes.guess_type(url)[0], 'image/png')
+        # Check 2
+        mimeType = subprocess.check_output(['file', '-ib', imagefile.name]).strip()
+        self.assertTrue('image/png' in mimeType)
+
+    @attr('notravis')
+    def test_screenshot_pillow(self):
+        pb = miscellaneous.get_screenshot_as_pillow()
+        ifile = tempfile.NamedTemporaryFile(suffix='.png')
+        pb.save(ifile.name)
+        imagefile = open(ifile.name, 'r')
+        self.assertIsNotNone(imagefile)
+
+        # TODO: use https://github.com/ahupp/python-magic ??
+        # Check 1
+        url = urllib.request.pathname2url(imagefile.name)
         self.assertEqual(mimetypes.guess_type(url)[0], 'image/png')
         # Check 2
         mimeType = subprocess.check_output(['file', '-ib', imagefile.name]).strip()

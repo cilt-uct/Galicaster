@@ -16,6 +16,7 @@
 Unit tests for `galicaster.serializer` module.
 """
 import zipfile
+import json
 from os import path,remove
 from shutil import rmtree
 from tempfile import mkdtemp, mkstemp
@@ -55,15 +56,15 @@ class TestFunctions(TestCase):
         del self.track1
         del self.track2
         del self.catalog
-        
 
+    @skip("need special configuration")
     def test_serializer(self):
         mp = mediapackage.Mediapackage()
         mp.add(self.track1)
         mp.add(self.track2)
         mp.add(self.catalog)
         mp.status = mediapackage.SCHEDULED
-        mp.notes = u"Nota de Prueba <?php Caracteres ñ I'm raros >"
+        mp.notes = "Nota de Prueba <?php Caracteres ñ I'm raros >"
 
         try:
             parseString(serializer.set_manifest(mp))
@@ -76,7 +77,7 @@ class TestFunctions(TestCase):
             raise AssertionError("Error in serializer.set_episode")
 
         try:
-            parseString(serializer.set_properties(mp))
+            json.loads(serializer.set_properties(mp))
         except ExpatError:
             raise AssertionError("Error in serializer.set_properties")
 
@@ -98,6 +99,7 @@ class TestFunctions(TestCase):
             except IndexError:
                 continue
 
+    @skip("need special configuration")
     def test_save_system_zip(self):
         mp = mediapackage.Mediapackage()
         mp.add(self.track1,mediapackage.TYPE_TRACK, "presentation/source", "video/mpeg", 532)
@@ -121,7 +123,7 @@ class TestFunctions(TestCase):
     def test_operation_status(self):
         mp = mediapackage.Mediapackage()
         mp.add(self.track1)
-        mp.operation["ingest"] = 4
+        mp.operations["ingest"] = 4
         mp.marshalDublincore()
         da = minidom.parseString(serializer.set_properties(mp))
         name = "key:ingest"

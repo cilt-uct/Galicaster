@@ -190,7 +190,7 @@ class ManagerUI(Gtk.Box):
             text['text'] = text['text'] + _("Ingest disabled because of network problems. ")
 
         for job in day:
-            op_state = package.operation[job.lower().replace(" ", "")]
+            op_state = package.operations[job.lower().replace(" ", "")]
             if op_state == mediapackage.OP_DONE:
                 text['text']=text['text'] + "\n" + _("{0} already performed").format(OPERATION_NAMES.get(job, job))
             elif op_state == mediapackage.OP_NIGHTLY:
@@ -287,11 +287,11 @@ class ManagerUI(Gtk.Box):
         data['created'] = readable.date(mp.getStartDateAsString(),
                                    "%B %d, %Y - %H:%M").replace(' 0',' ')
 
-        if data.has_key('seriestitle'):
+        if 'seriestitle' in data:
             data['isPartOf'] = data['seriestitle']
 
         # Operations
-        for op,status in data['operations'].iteritems():
+        for op,status in list(data['operations'].items()):
             data[op] = mediapackage.op_status[status]
         del data['operations']
 
