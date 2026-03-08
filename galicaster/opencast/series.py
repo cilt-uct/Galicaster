@@ -20,7 +20,7 @@ import getpass
 
 NAMESP = 'http://purl.org/dc/terms/'
 DISALLOWED_QUERIES = [ 'q', 'edit', 'sort', 'startPage', 'count', 'default' ]
-RESULTS_PER_PAGE = 500
+RESULTS_PER_PAGE = 15000
 MAPPINGS = { 'user': getpass.getuser() }
 
 
