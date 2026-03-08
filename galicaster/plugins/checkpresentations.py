@@ -47,12 +47,12 @@ def init():
     videomatch_version = ''
 
     try:
-        ffprobe_version = subprocess.check_output([ffprobe_bin,'-version'])
+        ffprobe_version = subprocess.check_output([ffprobe_bin,'-version']).decode("utf-8")
     except:
         logger.error('Unable to run ffprobe executable: %s', ffprobe_bin)
 
     try:
-        videomatch_version = subprocess.check_output([videomatch_bin,'-version'])
+        videomatch_version = subprocess.check_output([videomatch_bin,'-version']).decode("utf-8")
     except:
         logger.error('Unable to run videomatch executable: %s', videomatch_bin)
 
@@ -91,12 +91,13 @@ def drop_presentations(sender, operation_code, mp):
     removed = False
 
     mpIdentifier = mp.getIdentifier()
-    logger.info('Checking presentation tracks for MP ' + mpIdentifier)
+    logger.info(f"Checking presentation tracks for MP {mpIdentifier} with {len(mp.getTracks())} tracks")
 
     # Get track size and bitrates
     for t in mp.getTracks():
 
        type = t.getFlavor()
+
        if type == flavor_p1 or type == flavor_p2:
 
              # ffprobe -v error -show_entries format=bit_rate -of default=noprint_wrappers=1 presentation.avi
@@ -109,7 +110,7 @@ def drop_presentations(sender, operation_code, mp):
 
              try:
                 ff_bitrate = subprocess.check_output([ffprobe_bin,'-v','error','-show_entries','format=bit_rate','-of',
-                   'default=nokey=1:noprint_wrappers=1', t.getURI()]).replace("\n", "")
+                   'default=nokey=1:noprint_wrappers=1', t.getURI()]).decode("utf-8").replace("\n", "")
                 bitrate = int(ff_bitrate)
                 logger.info('bitrate for track %s: %i bps', t.getURI(), bitrate)
              except ValueError:
@@ -190,7 +191,7 @@ def drop_presentations(sender, operation_code, mp):
              match_result_i = 0
 
              try:
-                match_result = subprocess.check_output([videomatch_bin, track_p1.getURI(), track_p2.getURI()]).replace("\n", "")
+                match_result = subprocess.check_output([videomatch_bin, track_p1.getURI(), track_p2.getURI()]).decode("utf-8").replace("\n", "")
                 match_result_i = int(match_result)
                 logger.info('Frame similarity between presentation tracks: %i%%', match_result_i)
              except ValueError:
@@ -216,7 +217,7 @@ def __track_empty(t):
     empty_result_i = 0
 
     try:
-       empty_result = subprocess.check_output([videomatch_bin, '--empty', t.getURI()]).replace("\n", "")
+       empty_result = subprocess.check_output([videomatch_bin, '--empty', t.getURI()]).decode("utf-8").replace("\n", "")
        empty_result_i = int(empty_result)
        logger.info('Presentation track %s is %i%% empty', os.path.basename(t.getURI()), empty_result_i)
     except ValueError:
