@@ -153,7 +153,7 @@ class TestFunctions(TestCase):
         password = 'CHANGE_ME'
         client_name = 'rubenrua_pr'
         client_address = '172.20.209.225'
-        client_states = [ 'shutting_down', 'capturing', 'uploading', 'unknown', 'idle' ]        
+        client_states = [ 'shutting_down', 'capturing', 'uploading', 'unknown', 'error', 'idle' ]
 
         client = OCHTTPClient(server, user, password)
         client.hostname = client_name

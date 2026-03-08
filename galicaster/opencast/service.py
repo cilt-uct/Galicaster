@@ -213,7 +213,7 @@ class OCService(object):
         """
 
         if self.recorder.is_error():
-            self.ca_status = 'unknown' #See AgentState.java
+            self.ca_status = 'error' #See AgentState.java
         elif self.recorder.is_recording():
             self.ca_status = 'capturing'
         else:
