@@ -52,8 +52,8 @@ def lecturesight_start(self, mpIdentifier):
 	# Start Lecturesight
         try:
             tn = telnetlib.Telnet("localhost", 2501)
-            tn.read_until("g!")
-            tn.write("scheduler:start\n")
+            tn.read_until(b"g!")
+            tn.write(b"scheduler:start\n")
             time.sleep(3)
             tn.close()
         except Exception as e:
@@ -77,11 +77,11 @@ def add_lecturesight_metrics(self, mpIdentifier):
         logger.info('Recording stopped: ' + mp.getTitle() + ' (' + mpIdentifier + ')')
 
     # Stop Lecturesight if it's a manual recording
-    if "Recording started at" in mp.getTitle():
+    if " at " in mp.getTitle():
         try:
             tn = telnetlib.Telnet("localhost", 2501)
-            tn.read_until("g!")
-            tn.write("scheduler:stop\n")
+            tn.read_until(b"g!")
+            tn.write(b"scheduler:stop\n")
             time.sleep(2)
             tn.close()
         except Exception as e:
