@@ -22,8 +22,8 @@ def init():
     sceneName = '/opt/ls/profiles/overview.scn'
 
     if not os.path.exists(lsPath):
-	logger.info("LectureSight not installed, or metrics not enabled")
-	return
+        logger.info("LectureSight not installed, or metrics not enabled")
+        return
 
     # Target name for the json file in the mediapackage
     metricsTargetName = 'lecturesight-metrics.json'
