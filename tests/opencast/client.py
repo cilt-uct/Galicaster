@@ -35,6 +35,7 @@ class TestFunctions(TestCase):
     def test_init(self):
         server = 'http://demo.opencastproject.org:8080'
         user = 'opencast_system_account';
+        # WARNING: Never use this password in production!
         password = 'CHANGE_ME';
         hostname = 'GalicasterTestHost'
         address = '8.8.8.8'

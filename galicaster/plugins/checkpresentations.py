@@ -109,10 +109,19 @@ def drop_presentations(sender, operation_code, mp):
              size = os.path.getsize(t.getURI())
 
              try:
-                ff_bitrate = subprocess.check_output([ffprobe_bin,'-v','error','-show_entries','format=bit_rate','-of',
-                   'default=nokey=1:noprint_wrappers=1', t.getURI()]).decode("utf-8").replace("\n", "")
-                bitrate = int(ff_bitrate)
-                logger.info('bitrate for track %s: %i bps', t.getURI(), bitrate)
+                uri = t.getURI()
+                if not uri or not os.path.isfile(uri):
+                    logger.info('Invalid or missing file for bitrate check: %s', uri)
+                    bitrate = -1
+                else:
+                    try:
+                        ff_bitrate = subprocess.check_output([ffprobe_bin,'-v','error','-show_entries','format=bit_rate','-of',
+                            'default=nokey=1:noprint_wrappers=1', uri], timeout=10).decode("utf-8").replace("\n", "")
+                        bitrate = int(ff_bitrate)
+                        logger.info('bitrate for track %s: %i bps', os.path.basename(uri), bitrate)
+                    except (ValueError, subprocess.CalledProcessError, OSError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+                        logger.info('Error getting bitrate for track %s: %s', uri, str(e))
+                        bitrate = -1
              except ValueError:
                 # ffprobe will return "N/A" for unknown bitrate (where the file was not closed properly)
                 logger.info('Unknown bitrate for track %s: %s', t.getURI(), ff_bitrate)
@@ -191,9 +200,19 @@ def drop_presentations(sender, operation_code, mp):
              match_result_i = 0
 
              try:
-                match_result = subprocess.check_output([videomatch_bin, track_p1.getURI(), track_p2.getURI()]).decode("utf-8").replace("\n", "")
-                match_result_i = int(match_result)
-                logger.info('Frame similarity between presentation tracks: %i%%', match_result_i)
+                uri1 = track_p1.getURI()
+                uri2 = track_p2.getURI()
+                if not (uri1 and uri2 and os.path.isfile(uri1) and os.path.isfile(uri2)):
+                    logger.info('Invalid or missing files for videomatch: %s, %s', uri1, uri2)
+                    match_result_i = 0
+                else:
+                    try:
+                        match_result = subprocess.check_output([videomatch_bin, uri1, uri2], timeout=20).decode("utf-8").replace("\n", "")
+                        match_result_i = int(match_result)
+                        logger.info('Frame similarity between presentation tracks: %i%%', match_result_i)
+                    except (ValueError, subprocess.CalledProcessError, OSError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+                        logger.info('Error comparing frame similarity: %s', str(e))
+                        match_result_i = 0
              except ValueError:
                 logger.info('Unknown frame similarity result: %s', match_result)
              except subprocess.CalledProcessError:

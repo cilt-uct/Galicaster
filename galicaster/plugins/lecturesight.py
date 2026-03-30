@@ -7,6 +7,7 @@ import os
 import sys
 from shutil import copyfile
 import telnetlib
+import warnings  # Added for security warning
 import time
 
 from galicaster.core import context
@@ -41,6 +42,7 @@ def init():
         pass
 
 def lecturesight_start(self, mpIdentifier):
+    warnings.warn("Insecure use of telnetlib. Consider replacing with a secure, authenticated IPC mechanism.")
 
     # Is this a scheduled or ad-hoc recording?
     mp_list = context.get_repository()
@@ -64,6 +66,7 @@ def lecturesight_start(self, mpIdentifier):
         # No need to start Lecturesight as it would have started from the iCal entry
 
 def add_lecturesight_metrics(self, mpIdentifier):
+    warnings.warn("Insecure use of telnetlib. Consider replacing with a secure, authenticated IPC mechanism.")
     tmp = None
     done = False
 
