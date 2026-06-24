@@ -1,13 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 # Galicaster 3.x UCT - LectureSight plugin
 # Adds metrics-*.json file as a mediapackage attachment
 
 import os
-import sys
 from shutil import copyfile
 import telnetlib
-import warnings  # Added for security warning
 import time
 
 from galicaster.core import context
@@ -42,7 +40,6 @@ def init():
         pass
 
 def lecturesight_start(self, mpIdentifier):
-    warnings.warn("Insecure use of telnetlib. Consider replacing with a secure, authenticated IPC mechanism.")
 
     # Is this a scheduled or ad-hoc recording?
     mp_list = context.get_repository()
@@ -51,7 +48,7 @@ def lecturesight_start(self, mpIdentifier):
     if mp is None:
         logger.info('Unscheduled recording started: ' + mpIdentifier)
 
-	# Start Lecturesight
+        # Start Lecturesight
         try:
             tn = telnetlib.Telnet("localhost", 2501)
             tn.read_until(b"g!")
@@ -66,7 +63,6 @@ def lecturesight_start(self, mpIdentifier):
         # No need to start Lecturesight as it would have started from the iCal entry
 
 def add_lecturesight_metrics(self, mpIdentifier):
-    warnings.warn("Insecure use of telnetlib. Consider replacing with a secure, authenticated IPC mechanism.")
     tmp = None
     done = False
 
@@ -80,7 +76,7 @@ def add_lecturesight_metrics(self, mpIdentifier):
         logger.info('Recording stopped: ' + mp.getTitle() + ' (' + mpIdentifier + ')')
 
     # Stop Lecturesight if it's a manual recording
-    if " at " in mp.getTitle():
+    if "Recording started at" in mp.getTitle():
         try:
             tn = telnetlib.Telnet("localhost", 2501)
             tn.read_until(b"g!")

@@ -23,7 +23,7 @@ def convert_to_human_format(date):
 def chunks(l, n):
     """ Yield successive n-sized chunks from l.
     """
-    for i in xrange(0, len(l), n):
+    for i in range(0, len(l), n):
         yield l[i:i+n]
 
 # PARSER
@@ -46,15 +46,15 @@ parser.add_option("-l", "--lag",type= "int",dest="lag",default="1",
 parser.add_option("-o","--opencast", dest='opencastMode',help="Whether to send to opencast the calendar or save it locally", default=False)
 (options, args) = parser.parse_args()
 
-print "=========== CURRENT CONFIG ==========="
-print " Server:          ", options.server
-print " Username:        ", options.username
-print " Password:        ", options.password
-print " Capture agent:   ", options.ca
-print " Num recordings:  ", options.recordings
-print " Duration (min):  ", options.duration
-print " Lag (min):       ", options.lag
-print "======================================\n"
+print("=========== CURRENT CONFIG ===========")
+print(" Server:          ", options.server)
+print(" Username:        ", options.username)
+print(" Password:        ", options.password)
+print(" Capture agent:   ", options.ca)
+print(" Num recordings:  ", options.recordings)
+print(" Duration (min):  ", options.duration)
+print(" Lag (min):       ", options.lag)
+print("======================================\n")
 
 client._session.verify = False
 cli = MHClient(options.server, options.username, options.password)
@@ -110,26 +110,26 @@ end_date = None
 events = ""
 for x in range(0, options.recordings):
     # TITLE
-    print "Creating a new recording"
+    print("Creating a new recording")
     tag = (datetime.datetime.now().replace(microsecond=0).isoformat() + 'Z') + ' - Recording: {}'.format(x)
     title = 'test - ' + tag
-    print "  Title:", title
+    print("  Title: {}".format(title))
 
     duration = datetime.timedelta(minutes=options.duration)
     if end_date:
         start_date = end_date + datetime.timedelta(minutes=options.lag)
     else:
         start_date = now + datetime.timedelta(minutes=options.lag)
-        
+
     start = start_date.isoformat() + 'Z'
     end_date = start_date + duration
     end = end_date.isoformat() + 'Z'
 
-    print "  Start: {}".format(start)
-    print "  End: {}".format(end)
-    
+    print("  Start: {}".format(start))
+    print("  End: {}".format(end))
+
     if options.opencastMode:
-        print "  Doing POST request..."
+        print("  Doing POST request...")
 
         extra_headers = {"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
 
@@ -141,14 +141,12 @@ for x in range(0, options.recordings):
 
         post_data = post_template.copy()
         post_data['dublincore'] = post_data['dublincore'].format(**dictionary)
-        response = cli.post("recordings/", data=urllib.urlencode(post_data), extra_headers=extra_headers)
-        print response
-
-
+        response = cli.post("recordings/", data=urllib.parse.urlencode(post_data), extra_headers=extra_headers)
+        print(response)
 
     else:
-        print "  Creating calendar event locally..."
-        new_uuid = '-'.join(unicode(uuid.uuid4()).split('-')[-2:])
+        print("  Creating calendar event locally...")
+        new_uuid = '-'.join(str(uuid.uuid4()).split('-')[-2:])
         episode = episode_template.format(**{
             'creator': 'iCalendar auto-generated',
             'start': convert_to_iso_format(start_date),
@@ -156,9 +154,9 @@ for x in range(0, options.recordings):
             'title': title,
             'ca': options.ca,
             'uuid': new_uuid
-            
+
         })
-        
+
         opencast_prop = opencast_prop_template.format(**{
             'date': convert_to_human_format(now),
             'title': title.replace(":", "\:"),
@@ -166,15 +164,15 @@ for x in range(0, options.recordings):
         })
 
         part_a = 'ATTACH;FMTTYPE=application/xml;VALUE=BINARY;ENCODING=BASE64;X-APPLE-FILEN\n '
-        part_b = 'AME=episode.xml:' + base64.b64encode(episode)
+        part_b = 'AME=episode.xml:' + base64.b64encode(episode.encode("utf-8")).decode("ascii")
         formatted_partb = re.sub("(.{72})", "\\1\n ", part_b, 0, re.DOTALL)
         whole_episode = part_a + formatted_partb
-        
+
         part_a = 'ATTACH;FMTTYPE=application/text;VALUE=BINARY;ENCODING=BASE64;X-APPLE-FILE\n '
         part_b = 'NAME=org.opencastproject.capture.agent.properties:' + base64.b64encode(opencast_prop)
         formatted_opencast_prop = re.sub("(.{72})", "\\1\n ", part_b, 0, re.DOTALL)
         whole_opencast_prop = part_a + formatted_opencast_prop
-        
+
         event = event_template.format(**{
             'timestamp': convert_to_icalendar_format(now),
             'start': convert_to_icalendar_format(start_date),
@@ -194,5 +192,5 @@ if not options.opencastMode:
     f = open(filename,'w')
     f.write(calendar)
     f.close()
-    print "Saved to {}".format(filename)
+    print("Saved to {}".format(filename))
 

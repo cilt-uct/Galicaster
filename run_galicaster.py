@@ -14,8 +14,7 @@
 
 import argparse
 import sys
-# debug
-# import traceback
+import traceback
 
 import gi
 gi.require_version('Gst', '1.0')
@@ -64,8 +63,7 @@ def main(args):
         return -2
 
     except Exception as exc:
-        # debug
-        # print traceback.format_exc()
+        print(traceback.format_exc())
 
         msg = "Error starting Galicaster: {0}".format(exc)
         print(msg)

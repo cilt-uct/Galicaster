@@ -38,7 +38,7 @@ def init():
                     loaded.append(name)
                     break
                 except Exception as e:
-                    if e.msg == 'No module named {}'.format(plugin):
+                    if str(e) == 'No module named {}'.format(plugin):
                         logger.warning('{} plugin {} not found'
                                        .format(plugin_type, plugin))
                     else:

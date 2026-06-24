@@ -38,7 +38,7 @@ class GCWindow(Gtk.Window):
 
         self.full_size = self.discover_size()  # Fullscreen size
         self.custom_size = self.full_size
-        expr = '[0-9]+[\,x\:][0-9]+'  # Parse custom size
+        expr = r'\d+\s*[x:,]\s*\d+'  # Parse custom size
         if re.match(expr, size):
             self.custom_size = [int(a) for a in size.split(re.search('[,x:]', size).group())]
         elif size == "auto":

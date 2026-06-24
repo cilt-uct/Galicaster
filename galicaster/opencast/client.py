@@ -155,7 +155,8 @@ class OCHTTPClient(object):
                 if (status_code > 200) and (status_code < 300):
                     self.logger and self.logger.warning("Opencast client ({}) sent a response with status code {}".format(urllib.parse.urlunparse(url), status_code))
                 else:
-                    title = self.find_between(b.getvalue(), "<title>", "</title>")
+                    body = b.getvalue().decode("utf-8", errors="replace")
+                    title = self.find_between(body, "<title>", "</title>")
                     self.logger and self.logger.error('call error in %s, status code {%r}: %s',
                                                       urllib.parse.urlunparse(url), status_code, title)
                     raise IOError('Error in Opencast client')
